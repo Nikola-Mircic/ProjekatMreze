@@ -1,9 +1,11 @@
-﻿using System;
+﻿using Client.Senders;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Client
@@ -12,37 +14,55 @@ namespace Client
     {
         static void Main(string[] args)
         {
-            // Uticnica za klijnta
-            // Svuda koristim Loopback posto rade na istoj masini
-            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            IPEndPoint client = new IPEndPoint(IPAddress.Loopback, 9000);
-            socket.Bind(client);
+            Socket clientUdpSocket = null;
+            IPAddress iPAddress = IPAddress.Loopback; // Svuda koristim Loopback posto rade na istoj masini
+            int clientPort = 9000;
+            int maxAttempts = 3;
 
-            // Adresa serverske UDP uticnice za prijavljivanje
-            IPEndPoint server = new IPEndPoint(IPAddress.Loopback, 8000);
-
-            byte[] msg = Encoding.UTF8.GetBytes("CONNECT");
             try
             {
-                socket.SendTo(msg, server);
-                Console.WriteLine("Message sent!");
-
-
-                byte[] targetEndPoint = new byte[1024]; // Buffer za cuvanje adrese
-                EndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0); // Promenjiva za cuvanje adrese posiljaoca
-                int bytesReceived = socket.ReceiveFrom(targetEndPoint, SocketFlags.None, ref remoteEndPoint);
-
-                // Ako je posaljilac server -> ispisi adresu iz odgovora
-                if (remoteEndPoint.Equals(server))
-                {
-                    Console.WriteLine(Encoding.UTF8.GetString(targetEndPoint));
-                    Console.ReadLine();
-                }
-
-            }catch(Exception ex)
+                // Uticnica za klijenta
+                clientUdpSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                IPEndPoint client = new IPEndPoint(iPAddress, clientPort);
+                clientUdpSocket.Bind(client);
+            }
+            catch(SocketException ex)
             {
                 Console.WriteLine(ex.ToString());
+                Console.ReadKey();
+                return;
             }
+
+            /*
+                slanje zahteva za konekciju
+                ukoliko se konekcija ne uspostavi u maxAttempts pokusaja, prekida se rad
+            */
+            ConnectionRequestSender connectionRequestSender = new ConnectionRequestSender(IPAddress.Loopback, 8000);
+
+            string ip = string.Empty;
+            int port = -1;
+            bool successful = false;
+
+            do
+            {
+                (ip, port, successful) = connectionRequestSender.RequestConnection(clientUdpSocket);
+
+                if (connectionRequestSender.ConnectionAttempts >= maxAttempts)
+                {
+                    Console.WriteLine("Connection failed!\nDisconnecting...");
+                    Console.ReadKey();
+                    return;
+                }
+                if (!successful)
+                {
+                    Thread.Sleep(1000);
+                }
+
+            } while (!successful);
+
+
+            //uspostaviti tcp konekciju sa dobijenim informacijama (TODO)
+
         }
     }
 }
