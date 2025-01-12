@@ -17,7 +17,7 @@ namespace Server.Receivers
 
         private bool Running = false;
 
-        public IPEndPoint ProcessReceiver { get; set; }
+        public IPEndPoint ProcessReceiver { get; set; } // Adresa uticnice za primanje procesa
 
         public ClientReceiver(int port)
         {
@@ -29,11 +29,11 @@ namespace Server.Receivers
 
             this.ReceiverThread = new Thread(() =>
             {
-                HandleRequest();
+                HandleRequests();
             });
         }
 
-        private void HandleRequest()
+        private void HandleRequests()
         {
             byte[] msg = new byte[1024];
             EndPoint clientEndPoint = new IPEndPoint(IPAddress.Any, 0);
@@ -46,18 +46,22 @@ namespace Server.Receivers
                     
                     string receivedMessage = Encoding.UTF8.GetString(msg, 0, bytesReceived);
 
+                    // "CONNECT" - je poruka za prijavljivanje klijenta
+                    // MOZE I DRUGACIJI SISTEM, OVO MI JE PRVO PALO NA PAMET
                     if (receivedMessage.Equals("CONNECT"))
                     {
+                        // Salje se adresa tcp uticnice za procese onom klijentu koji je poslao zahtev
                         byte[] process_ep = Encoding.UTF8.GetBytes(ProcessReceiver.ToString());
                         ClientSocket.SendTo(process_ep, clientEndPoint);
                     }
                     else if(receivedMessage.Equals("OS-STATUS"))
                     {
-
+                        // TO-DO: Zahtev za status operativnog sistema
                     }
                 }
                 catch (SocketException ex)
                 {
+                    // Ovaj exception se desava kada se rad uticnice prekine zbog zaustavljanja cele klase
                     if (ex.SocketErrorCode == SocketError.Interrupted)
                         return;
 

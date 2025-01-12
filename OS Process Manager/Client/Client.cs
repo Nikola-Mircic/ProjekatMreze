@@ -12,10 +12,13 @@ namespace Client
     {
         static void Main(string[] args)
         {
+            // Uticnica za klijnta
+            // Svuda koristim Loopback posto rade na istoj masini
             Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             IPEndPoint client = new IPEndPoint(IPAddress.Loopback, 9000);
             socket.Bind(client);
 
+            // Adresa serverske UDP uticnice za prijavljivanje
             IPEndPoint server = new IPEndPoint(IPAddress.Loopback, 8000);
 
             byte[] msg = Encoding.UTF8.GetBytes("CONNECT");
@@ -24,14 +27,13 @@ namespace Client
                 socket.SendTo(msg, server);
                 Console.WriteLine("Message sent!");
 
-                byte[] targetEndPoint = new byte[1024];
-                EndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
+
+                byte[] targetEndPoint = new byte[1024]; // Buffer za cuvanje adrese
+                EndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0); // Promenjiva za cuvanje adrese posiljaoca
                 int bytesReceived = socket.ReceiveFrom(targetEndPoint, SocketFlags.None, ref remoteEndPoint);
 
-                if (bytesReceived == 0)
-                    return;
-
-                if (remoteEndPoint.Equals(remoteEndPoint))
+                // Ako je posaljilac server -> ispisi adresu iz odgovora
+                if (remoteEndPoint.Equals(server))
                 {
                     Console.WriteLine(Encoding.UTF8.GetString(targetEndPoint));
                     Console.ReadLine();
