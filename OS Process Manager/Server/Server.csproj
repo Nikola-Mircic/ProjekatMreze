@@ -44,7 +44,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Receivers\ClientReceiver.cs" />
-    <Compile Include="Scheduler.cs" />
+    <Compile Include="Receivers\ProcessReceiver.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

@@ -17,6 +17,8 @@ namespace Server.Receivers
 
         private bool Running = false;
 
+        public IPEndPoint ProcessReceiver { get; set; }
+
         public ClientReceiver(int port)
         {
             // Inicijalizacija promenjivih 
@@ -24,7 +26,6 @@ namespace Server.Receivers
 
             this.ClientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             this.ClientSocket.Bind(new IPEndPoint(IPAddress.Any, Port));
-            this.ClientSocket.Blocking = false;
 
             this.ReceiverThread = new Thread(() =>
             {
@@ -41,21 +42,26 @@ namespace Server.Receivers
             {
                 try
                 {
-                    int bytesReceived = ClientSocket.Receive(msg);
-
-                    if (bytesReceived == 0)
-                        continue;
+                    int bytesReceived = ClientSocket.ReceiveFrom(msg, SocketFlags.None, ref clientEndPoint);
                     
                     string receivedMessage = Encoding.UTF8.GetString(msg, 0, bytesReceived);
 
-                    Console.WriteLine(receivedMessage);
+                    if (receivedMessage.Equals("CONNECT"))
+                    {
+                        byte[] process_ep = Encoding.UTF8.GetBytes(ProcessReceiver.ToString());
+                        ClientSocket.SendTo(process_ep, clientEndPoint);
+                    }
+                    else if(receivedMessage.Equals("OS-STATUS"))
+                    {
+
+                    }
                 }
                 catch (SocketException ex)
                 {
-                    if (ex.SocketErrorCode == SocketError.WouldBlock)
-                        continue;
+                    if (ex.SocketErrorCode == SocketError.Interrupted)
+                        return;
 
-                    Console.WriteLine("recvfrom failed with error: {0}", ex.Message);
+                    Console.WriteLine("[ClientReceiver] Socket error {0}: {1}", ex.SocketErrorCode, ex.Message);
                 }
             }
         }
@@ -73,8 +79,8 @@ namespace Server.Receivers
             if (!Running) return;
 
             Running = false;
-            ReceiverThread.Join();
             ClientSocket.Close();
+            ReceiverThread.Join();
         }
     }
 }
