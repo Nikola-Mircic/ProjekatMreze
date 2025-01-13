@@ -12,15 +12,65 @@ namespace Client.Senders
     {
         Socket clientSocket = null;
 
-        private IPAddress IPAddress;
-        private int serverPort;
+        private readonly IPAddress IPAddress;
+        private readonly int serverPort;
 
-        public int ConnectionAttempts { get; private set; }
+        public int ConnectionAttempts { get; private set; } //nije implementirano
 
         public TcpRequestSender(IPAddress IPAddress, int serverPort)
         {
             this.IPAddress = IPAddress;
             this.serverPort = serverPort;
+        }
+
+        public void Close()
+        {
+            if (clientSocket != null)
+            {
+                clientSocket.Close();
+            }
+        }
+
+        public bool RequestConnection()
+        {
+            if (clientSocket == null)
+            {
+                try
+                {
+                    clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                }
+                catch(SocketException ex)
+                {
+                    Console.WriteLine(ex.ToString());
+                    return false;
+                }
+            }
+            try
+            {
+                IPEndPoint ipEndPoint = new IPEndPoint(IPAddress, serverPort);
+                clientSocket.Connect(ipEndPoint);
+                return true;
+            }
+            catch(SocketException ex)
+            {
+                Console.WriteLine(ex.ToString());
+                return false;
+            }
+        }
+
+        public void SendProcess()
+        {
+            string msg = "";
+            
+            try
+            {
+                msg = Console.ReadLine(); //promeniti da salje procese
+                int bytesSent = clientSocket.Send(Encoding.UTF8.GetBytes(msg));
+            }
+            catch
+            {
+                Console.WriteLine("Failure");
+            }
         }
     }
 }

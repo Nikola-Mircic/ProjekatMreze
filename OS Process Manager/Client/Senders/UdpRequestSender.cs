@@ -12,8 +12,8 @@ namespace Client.Senders
     {
         Socket clientSocket = null;
 
-        private IPAddress IPAddress;
-        private int serverPort;
+        private readonly IPAddress IPAddress;
+        private readonly int serverPort;
 
         public int ConnectionAttempts { get; private set; }
 
@@ -21,6 +21,15 @@ namespace Client.Senders
         {
             this.IPAddress = IPAddress;
             this.serverPort = serverPort;
+            ConnectionAttempts = 0;
+        }
+
+        public void Close()
+        {
+            if(clientSocket != null)
+            {
+                clientSocket.Close();
+            }
         }
 
         public (string ip, int port, bool success) RequestConnection()
@@ -71,9 +80,9 @@ namespace Client.Senders
             }
         }
 
-        public void RequestInformation() //preuzimanje informacija od servera (TODO)
+        public void RequestInformation() //preuzimanje informacija sa servera (TODO)
         {
-
+            Console.WriteLine("TODO...");
         }
     }
 }
