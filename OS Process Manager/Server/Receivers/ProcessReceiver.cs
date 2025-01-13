@@ -6,6 +6,9 @@ using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
+using ProcessOS;
 
 namespace Server.Receivers
 {
@@ -53,7 +56,7 @@ namespace Server.Receivers
             }
             foreach (Socket socket in acceptedSockets) //zatvaranje otvorenih soketa ukoliko se listener ugasi pre njih
             {
-                if(socket != null || socket.IsBound)
+                if(socket != null && socket.Connected)
                 {
                     socket.Close();
                 }
@@ -94,7 +97,6 @@ namespace Server.Receivers
         private void HandleClient(Socket socket)
         {
             byte[] buffer = new byte[1024];
-            string msg = "";
             try
             {
                 while (true)
@@ -107,14 +109,20 @@ namespace Server.Receivers
                         break;
                     }
 
-                    msg = Encoding.UTF8.GetString(buffer, 0, bytesReceived);
-                    Console.WriteLine("Received message: " + msg);
-
-                    if (msg == "QUIT")
+                    Process process = null;
+                    using (MemoryStream ms = new MemoryStream(buffer))
                     {
-                        Console.WriteLine("Received QUIT. Closing connection...");
+                        BinaryFormatter bf = new BinaryFormatter();
+                        process = bf.Deserialize(ms) as Process;   
+                    }
+
+                    if(process == null)
+                    {
+                        Console.WriteLine("Invalid process was received");
                         break;
                     }
+
+                    Console.WriteLine("Received process:\n\t" + process);
                 }
             }
             catch (SocketException ex)

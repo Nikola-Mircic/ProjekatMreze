@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Process
+namespace ProcessOS
 {
     [Serializable]
     public class Process
@@ -15,19 +15,20 @@ namespace Process
         public double CpuUsage { get; set; }
         public double MemoryUsage { get; set; }
 
-        public Process(string name, int executionTime, int priority, double cpuUsage, double memoryUsage)
+        public Process(string name)
         {
+            Random rand = new Random();
             Name = name;
-            ExecutionTime = executionTime;
-            Priority = priority;
-            CpuUsage = cpuUsage;
-            MemoryUsage = memoryUsage;
+            ExecutionTime = rand.Next(1, 5);
+            Priority = rand.Next(0,3);
+            CpuUsage = rand.NextDouble() * 100;
+            MemoryUsage = rand.NextDouble() * 100;
         }
 
         public override string ToString()
         {
             return $"| Name: {Name, -10} | Execution time: {ExecutionTime + "s", -3} | Priority: {Priority, -2} " +
-                $"| CPU usage: {CpuUsage + "%",-4} | Memory usage: {MemoryUsage + "%",-4} |";
+                $"| CPU usage: {CpuUsage.ToString("F2") + "%",-4} | Memory usage: {MemoryUsage.ToString("F2") + "%",-4} |";
         }
     }
 }

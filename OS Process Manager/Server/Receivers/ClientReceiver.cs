@@ -77,8 +77,8 @@ namespace Server.Receivers
             if (!Running) return;
 
             Running = false;
-
             ClientSocket.Close();
+            Console.WriteLine("UDP listener socket closed");
         }
     }
 }
