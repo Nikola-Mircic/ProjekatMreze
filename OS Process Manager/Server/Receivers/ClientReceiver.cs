@@ -13,7 +13,6 @@ namespace Server.Receivers
     {
         private readonly int Port; // Port na kome uticnica radi
         private Socket ClientSocket; // UDP Socket za prijem zahteva
-        private Thread ReceiverThread; // Thread na kome radi socket
 
         private bool Running = false;
 
@@ -27,10 +26,6 @@ namespace Server.Receivers
             this.ClientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             this.ClientSocket.Bind(new IPEndPoint(IPAddress.Any, Port));
 
-            this.ReceiverThread = new Thread(() =>
-            {
-                HandleRequests();
-            });
         }
 
         private void HandleRequests()
@@ -73,9 +68,8 @@ namespace Server.Receivers
         public void Start()
         {
             if(Running) return;
-
             Running = true;
-            ReceiverThread.Start();
+            HandleRequests();
         }
 
         public void Stop()
@@ -84,7 +78,7 @@ namespace Server.Receivers
 
             Running = false;
             ClientSocket.Close();
-            ReceiverThread.Join();
+            Console.WriteLine("UDP listener socket closed");
         }
     }
 }

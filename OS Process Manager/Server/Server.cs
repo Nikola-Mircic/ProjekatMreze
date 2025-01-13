@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Server
@@ -18,11 +19,24 @@ namespace Server
             ClientReceiver receiver = new ClientReceiver(CLIENT_CONN_PORT);
             receiver.ProcessReceiver = new IPEndPoint(IPAddress.Loopback, PROCESS_PORT);
 
-            receiver.Start();
+            //udp listener
+            Thread udpThread = new Thread(() => receiver.Start());
+            udpThread.Start();
+            
+            ProcessReceiver tcpProcessReceiver = new ProcessReceiver(IPAddress.Loopback, PROCESS_PORT);
+            tcpProcessReceiver.Start();
+
+            //tcp listener
+            Thread tcpThread = new Thread(() => tcpProcessReceiver.Connect());
+            tcpThread.Start();
+
             Console.WriteLine("Receiver Started!");
             Console.ReadLine();
 
+            tcpProcessReceiver.Stop();
             receiver.Stop();
+
+
         }
     }
 }

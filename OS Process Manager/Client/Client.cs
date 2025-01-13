@@ -1,9 +1,11 @@
-﻿using System;
+﻿using Client.Senders;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Client
@@ -12,37 +14,82 @@ namespace Client
     {
         static void Main(string[] args)
         {
-            // Uticnica za klijnta
-            // Svuda koristim Loopback posto rade na istoj masini
-            Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            IPEndPoint client = new IPEndPoint(IPAddress.Loopback, 9000);
-            socket.Bind(client);
+            IPAddress iPAddress = IPAddress.Loopback; // Svuda koristim Loopback posto rade na istoj masini
+            int serverPort = 8000;
 
-            // Adresa serverske UDP uticnice za prijavljivanje
-            IPEndPoint server = new IPEndPoint(IPAddress.Loopback, 8000);
+            int maxAttempts = 3;
 
-            byte[] msg = Encoding.UTF8.GetBytes("CONNECT");
-            try
+            /*
+                slanje zahteva za konekciju
+                ukoliko se konekcija ne uspostavi u maxAttempts pokusaja, prekida se rad
+            */
+            UdpRequestSender udpRequestSender = new UdpRequestSender(iPAddress, serverPort);
+
+            string ip = string.Empty;
+            int port = -1;
+            bool successful = false;
+
+            do
             {
-                socket.SendTo(msg, server);
-                Console.WriteLine("Message sent!");
+                (ip, port, successful) = udpRequestSender.RequestConnection();
 
-
-                byte[] targetEndPoint = new byte[1024]; // Buffer za cuvanje adrese
-                EndPoint remoteEndPoint = new IPEndPoint(IPAddress.Any, 0); // Promenjiva za cuvanje adrese posiljaoca
-                int bytesReceived = socket.ReceiveFrom(targetEndPoint, SocketFlags.None, ref remoteEndPoint);
-
-                // Ako je posaljilac server -> ispisi adresu iz odgovora
-                if (remoteEndPoint.Equals(server))
+                if (udpRequestSender.ConnectionAttempts >= maxAttempts)
                 {
-                    Console.WriteLine(Encoding.UTF8.GetString(targetEndPoint));
-                    Console.ReadLine();
+                    Console.WriteLine("Connection failed!\nDisconnecting...");
+                    Console.ReadKey();
+                    return;
+                }
+                if (!successful)
+                {
+                    Thread.Sleep(1000);
                 }
 
-            }catch(Exception ex)
+            } while (!successful);
+
+            //uspostavljanje tcp konekcije sa serverom
+            TcpRequestSender tcpRequestSender = new TcpRequestSender(IPAddress.Parse(ip), port);
+            successful = tcpRequestSender.RequestConnection();
+            if (!successful)
             {
-                Console.WriteLine(ex.ToString());
+                Console.WriteLine("Connection failed!\nDisconnecting...");
+                return;
             }
+
+            int opt = -1;
+            do
+            {
+                ShowMenu();
+                int.TryParse(Console.ReadLine(), out opt);
+
+                switch (opt)
+                {
+                    case 1:
+                        udpRequestSender.RequestInformation(); //nije implementirano
+                        Console.WriteLine("Press any key to continue...");
+                        Console.ReadKey();
+                        break;
+                    case 2:
+                        tcpRequestSender.SendProcess(); //trenutno radi sa obicnim porukama
+                        Console.WriteLine("Press any key to continue...");
+                        Console.ReadKey();
+                        break;
+                    case 0:
+                        break;
+                }
+
+            } while (opt != 0);
+
+            tcpRequestSender.Close();
+            udpRequestSender.Close();
+        }
+
+        private static void ShowMenu()
+        {
+            Console.Clear();
+            Console.WriteLine("Choose option: ");
+            Console.WriteLine("1. Request information");
+            Console.WriteLine("2. Send process");
+            Console.WriteLine("0. Quit");
         }
     }
 }
