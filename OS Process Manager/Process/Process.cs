@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 
 namespace ProcessOS
 {
     [Serializable]
     public class Process
     {
+        private static Random rand = new Random();
         public string Name { get; set; }
         public int ExecutionTime { get; set; }
         public int Priority { get; set; }
@@ -17,7 +19,6 @@ namespace ProcessOS
 
         public Process(string name)
         {
-            Random rand = new Random();
             Name = name;
             ExecutionTime = rand.Next(1, 5);
             Priority = rand.Next(0,3);
