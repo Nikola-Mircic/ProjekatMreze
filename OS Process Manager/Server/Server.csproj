@@ -46,6 +46,7 @@
     <Compile Include="Receivers\ClientReceiver.cs" />
     <Compile Include="Receivers\ProcessReceiver.cs" />
     <Compile Include="Schedulers\IScheduler.cs" />
+    <Compile Include="Schedulers\RoundRobinScheduler.cs" />
     <Compile Include="Schedulers\ShortestFirstScheduler.cs" />
     <Compile Include="Server.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

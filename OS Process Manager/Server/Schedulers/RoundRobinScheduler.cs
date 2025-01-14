@@ -52,9 +52,14 @@ namespace Server.Schedulers
             if (processes[nextProcess].ExecutionTime == 0)
                 processes.RemoveAt(nextProcess);
 
-            nextProcess = (nextProcess + 1) % processes.Count;
+            if(processes.Count > 0)
+                nextProcess = (nextProcess + 1) % processes.Count;
 
             return (next, time);
+        }
+        public bool HasUnfinished()
+        {
+            return processes.Count > 0;
         }
     }
 }

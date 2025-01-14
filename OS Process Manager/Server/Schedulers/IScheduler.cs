@@ -22,5 +22,7 @@ namespace Server.Schedulers
 
         void AddAll(List<Process> list);
         List<Process> GetAll();
+
+        bool HasUnfinished();
     }
 }

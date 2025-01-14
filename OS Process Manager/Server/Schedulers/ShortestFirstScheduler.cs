@@ -58,5 +58,10 @@ namespace Server.Schedulers
 
             return (next, next.ExecutionTime);
         }
+
+        public bool HasUnfinished()
+        {
+            return processes.Count > 0;
+        }
     }
 }
