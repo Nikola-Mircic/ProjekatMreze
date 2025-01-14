@@ -8,7 +8,7 @@ using System.Xml.Linq;
 namespace ProcessOS
 {
     [Serializable]
-    public class Process
+    public class Process : ICloneable
     {
         private static Random rand = new Random();
         public string Name { get; set; }
@@ -26,10 +26,24 @@ namespace ProcessOS
             MemoryUsage = rand.NextDouble() * 100;
         }
 
+        private Process(string name, int execTime, int priority, double cpu, double mem)
+        {
+            this.Name = name;
+            this.ExecutionTime = execTime;
+            this.Priority = priority;
+            this.CpuUsage = cpu;
+            this.MemoryUsage = mem;
+        }
+
         public override string ToString()
         {
             return $"| Name: {Name, -10} | Execution time: {ExecutionTime + "s", -3} | Priority: {Priority, -2} " +
                 $"| CPU usage: {CpuUsage.ToString("F2") + "%",-4} | Memory usage: {MemoryUsage.ToString("F2") + "%",-4} |";
+        }
+
+        public object Clone()
+        {
+            return new Process(Name.Clone() as string, ExecutionTime, Priority, CpuUsage, MemoryUsage);
         }
     }
 }
