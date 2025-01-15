@@ -28,8 +28,11 @@ namespace Client
             do
             {
                 LogIn();
-                int.TryParse(Console.ReadLine(), out scheduleOpt);
-
+                if(!int.TryParse(Console.ReadLine(), out scheduleOpt))
+                {
+                    scheduleOpt = -1;
+                }
+                
                 switch (scheduleOpt)
                 {
                     case 1:
@@ -41,6 +44,7 @@ namespace Client
                     case 0:
                         return;
                 }
+                
             } while (scheduleOpt < 0);
             
             UdpRequestSender udpRequestSender = new UdpRequestSender(iPAddress, serverPort);
@@ -79,8 +83,10 @@ namespace Client
             do
             {
                 ShowMenu();
-                int.TryParse(Console.ReadLine(), out opt);
-
+                if (!int.TryParse(Console.ReadLine(), out opt))
+                {
+                    opt = -1;
+                }
                 switch (opt)
                 {
                     case 1:

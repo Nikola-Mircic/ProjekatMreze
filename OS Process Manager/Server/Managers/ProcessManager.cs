@@ -14,7 +14,7 @@ namespace Server.Managers
         public double totalCpuUsage { get; private set; }
         public double totalMemoryUsage { get; private set; }
         private IScheduler scheduler;
-        private readonly Mutex mutex;
+        private static readonly Mutex mutex = new Mutex();
 
         public ProcessManager(IScheduler scheduler)
         {
