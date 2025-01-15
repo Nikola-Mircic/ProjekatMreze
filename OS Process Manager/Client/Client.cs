@@ -23,30 +23,6 @@ namespace Client
                 slanje zahteva za konekciju
                 ukoliko se konekcija ne uspostavi u maxAttempts pokusaja, prekida se rad
             */
-            int scheduleOpt = -1; //samo prvi klijent treba da ima izbor
-            string mode = "";
-            do
-            {
-                LogIn();
-                if(!int.TryParse(Console.ReadLine(), out scheduleOpt))
-                {
-                    scheduleOpt = -1;
-                }
-                
-                switch (scheduleOpt)
-                {
-                    case 1:
-                        mode = "CONNECT RR";
-                        break;
-                    case 2:
-                        mode = "CONNECT SF";
-                        break;
-                    case 0:
-                        return;
-                }
-                
-            } while (scheduleOpt < 0);
-            
             UdpRequestSender udpRequestSender = new UdpRequestSender(iPAddress, serverPort);
 
             string ip = string.Empty;
@@ -55,7 +31,7 @@ namespace Client
 
             do
             {
-                (ip, port, successful) = udpRequestSender.RequestConnection(mode);
+                (ip, port, successful) = udpRequestSender.RequestConnection();
 
                 if (udpRequestSender.ConnectionAttempts >= maxAttempts)
                 {
@@ -107,15 +83,6 @@ namespace Client
 
             tcpRequestSender.Close();
             udpRequestSender.Close();
-        }
-
-        private static void LogIn()
-        {
-            Console.Clear();
-            Console.WriteLine("Choose option: ");
-            Console.WriteLine("1. Round Robin Scheduling");
-            Console.WriteLine("2. Shortest First Scheduling");
-            Console.WriteLine("0. Quit");
         }
 
         private static void ShowMenu()
