@@ -43,6 +43,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Managers\Manager.cs" />
+    <Compile Include="Managers\ProcessManager.cs" />
     <Compile Include="Receivers\ClientReceiver.cs" />
     <Compile Include="Receivers\ProcessReceiver.cs" />
     <Compile Include="Schedulers\IScheduler.cs" />

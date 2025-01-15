@@ -71,14 +71,7 @@ namespace Client.Senders
                 processName = Console.ReadLine(); //promeniti da salje procese
                 Process process = new Process(processName);
 
-                byte[] msg = new byte[1024];
-
-                using (MemoryStream ms = new MemoryStream())
-                {
-                    BinaryFormatter bf = new BinaryFormatter();
-                    bf.Serialize(ms, process);
-                    msg = ms.ToArray();
-                }
+                byte[] msg = Process.Serialize(process);
 
                 int bytesSent = clientSocket.Send(msg);
             }

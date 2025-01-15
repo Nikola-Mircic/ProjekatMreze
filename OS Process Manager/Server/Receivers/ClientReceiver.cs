@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Server.Managers;
+using Server.Schedulers;
+using System;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
@@ -43,11 +45,24 @@ namespace Server.Receivers
 
                     // "CONNECT" - je poruka za prijavljivanje klijenta
                     // MOZE I DRUGACIJI SISTEM, OVO MI JE PRVO PALO NA PAMET
-                    if (receivedMessage.Equals("CONNECT"))
+                    if (receivedMessage.Equals("CONNECT RR"))
                     {
                         // Salje se adresa tcp uticnice za procese onom klijentu koji je poslao zahtev
                         byte[] process_ep = Encoding.UTF8.GetBytes(ProcessReceiver.ToString());
                         ClientSocket.SendTo(process_ep, clientEndPoint);
+                        if(Manager.Init(new RoundRobinScheduler(500)))
+                        {
+                            Console.WriteLine("Round Robin Scheduling");
+                        }
+                    }
+                    else if(receivedMessage.Equals("CONNECT SF"))
+                    {
+                        byte[] process_ep = Encoding.UTF8.GetBytes(ProcessReceiver.ToString());
+                        ClientSocket.SendTo(process_ep, clientEndPoint);
+                        if(Manager.Init(new ShortestFirstScheduler()))
+                        {
+                            Console.WriteLine("Shortest First Scheduling");
+                        }
                     }
                     else if(receivedMessage.Equals("OS-STATUS"))
                     {

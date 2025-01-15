@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml.Linq;
@@ -44,6 +46,32 @@ namespace ProcessOS
         public object Clone()
         {
             return new Process(Name.Clone() as string, ExecutionTime, Priority, CpuUsage, MemoryUsage);
+        }
+
+        public static byte[] Serialize(Process process)
+        {
+            byte[] buffer = new byte[1024];
+
+            using (MemoryStream ms = new MemoryStream())
+            {
+                BinaryFormatter bf = new BinaryFormatter();
+                bf.Serialize(ms, process);
+                buffer = ms.ToArray();
+            }
+
+            return buffer;
+        }
+
+        public static Process Deserialize(byte[] buffer)
+        {
+            Process process = null;
+            using (MemoryStream ms = new MemoryStream(buffer))
+            {
+                BinaryFormatter bf = new BinaryFormatter();
+                process = bf.Deserialize(ms) as Process;
+            }
+
+            return process;
         }
     }
 }

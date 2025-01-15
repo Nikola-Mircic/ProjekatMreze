@@ -32,7 +32,7 @@ namespace Client.Senders
             }
         }
 
-        public (string ip, int port, bool success) RequestConnection()
+        public (string ip, int port, bool success) RequestConnection(string mode)
         {
             if(clientSocket == null)
             {
@@ -49,7 +49,7 @@ namespace Client.Senders
             // Adresa serverske UDP uticnice za prijavljivanje
             IPEndPoint server = new IPEndPoint(IPAddress, serverPort);
 
-            byte[] msg = Encoding.UTF8.GetBytes("CONNECT");
+            byte[] msg = Encoding.UTF8.GetBytes(mode);
             try
             {
                 clientSocket.SendTo(msg, server);

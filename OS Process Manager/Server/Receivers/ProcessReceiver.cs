@@ -9,6 +9,7 @@ using System.Threading;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using ProcessOS;
+using Server.Managers;
 
 namespace Server.Receivers
 {
@@ -109,12 +110,7 @@ namespace Server.Receivers
                         break;
                     }
 
-                    Process process = null;
-                    using (MemoryStream ms = new MemoryStream(buffer))
-                    {
-                        BinaryFormatter bf = new BinaryFormatter();
-                        process = bf.Deserialize(ms) as Process;   
-                    }
+                    Process process = Process.Deserialize(buffer);
 
                     if(process == null)
                     {
@@ -123,6 +119,14 @@ namespace Server.Receivers
                     }
 
                     Console.WriteLine("Received process:\n\t" + process);
+                    if (Manager.Get().Add(process))
+                    {
+                        //posalji poruku klijentu da je proces prihvacen
+                    }
+                    else
+                    {
+                        //posalji poruku klijentu da nema memorije/cpu
+                    }
                 }
             }
             catch (SocketException ex)
