@@ -118,14 +118,16 @@ namespace Server.Receivers
                         break;
                     }
 
-                    Console.WriteLine("Received process:\n\t" + process);
+                    //Console.WriteLine("Received process:\n\t" + process);
                     if (Manager.Get().Add(process))
                     {
                         //posalji poruku klijentu da je proces prihvacen
+                        socket.Send(Encoding.UTF8.GetBytes("SUCCESS"));
                     }
                     else
                     {
                         //posalji poruku klijentu da nema memorije/cpu
+                        socket.Send(Encoding.UTF8.GetBytes("FAILURE"));
                     }
                 }
             }

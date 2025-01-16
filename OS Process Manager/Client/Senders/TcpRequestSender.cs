@@ -18,8 +18,6 @@ namespace Client.Senders
         private readonly IPAddress IPAddress;
         private readonly int serverPort;
 
-        public int ConnectionAttempts { get; private set; } //nije implementirano
-
         public TcpRequestSender(IPAddress IPAddress, int serverPort)
         {
             this.IPAddress = IPAddress;
@@ -74,6 +72,14 @@ namespace Client.Senders
                 byte[] msg = Process.Serialize(process);
 
                 int bytesSent = clientSocket.Send(msg);
+
+                int bytesReceived = clientSocket.Receive(msg);
+
+                if(Encoding.UTF8.GetString(msg, 0, bytesReceived) != "SUCCESS")
+                {
+                    Console.WriteLine($"Process failed to start:\n\t{process}");
+                    Client.Processes.Add(process);
+                }
             }
             catch
             {

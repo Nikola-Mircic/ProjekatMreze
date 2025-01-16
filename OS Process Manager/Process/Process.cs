@@ -22,10 +22,10 @@ namespace ProcessOS
         public Process(string name)
         {
             Name = name;
-            ExecutionTime = rand.Next(1, 5);
+            ExecutionTime = rand.Next(1000, 5000);
             Priority = rand.Next(0,3);
-            CpuUsage = rand.NextDouble() * 100;
-            MemoryUsage = rand.NextDouble() * 100;
+            CpuUsage = rand.NextDouble() * rand.Next(10, 80);
+            MemoryUsage = rand.NextDouble() * rand.Next(10, 80);
         }
 
         private Process(string name, int execTime, int priority, double cpu, double mem)
@@ -39,8 +39,8 @@ namespace ProcessOS
 
         public override string ToString()
         {
-            return $"| Name: {Name, -10} | Execution time: {ExecutionTime + "s", -3} | Priority: {Priority, -2} " +
-                $"| CPU usage: {CpuUsage.ToString("F2") + "%",-4} | Memory usage: {MemoryUsage.ToString("F2") + "%",-4} |";
+            return $"| Name: {Name, -15} | Execution time: {ExecutionTime + "ms", -7} | Priority: {Priority, -2} " +
+                $"| CPU usage: {CpuUsage.ToString("F2") + "%",-6} | Memory usage: {MemoryUsage.ToString("F2") + "%",-6} |";
         }
 
         public object Clone()

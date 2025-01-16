@@ -15,51 +15,93 @@ namespace Server.Managers
         public double totalMemoryUsage { get; private set; }
         private IScheduler scheduler;
         private static readonly Mutex mutex = new Mutex();
+        private bool running;
 
         public ProcessManager(IScheduler scheduler)
         {
             this.scheduler = scheduler;
             totalCpuUsage = 0;
             totalMemoryUsage = 0;
+            running = false;
         }
 
         public bool Add(Process process)
         {
-            lock (mutex)
+            bool success = false;
+            try 
             {
-                if(totalCpuUsage + process.CpuUsage <= 100 && totalMemoryUsage + process.MemoryUsage <= 100)
+                mutex.WaitOne();
+
+                if (totalCpuUsage + process.CpuUsage <= 100 && totalMemoryUsage + process.MemoryUsage <= 100)
                 {
                     totalCpuUsage += process.CpuUsage;
                     totalMemoryUsage += process.MemoryUsage;
                     scheduler.Add(process);
-                    return true;
+                    success = true;
                 }
-
-                return false;
             }
+            catch
+            {
+                Console.WriteLine("Error");
+            }
+            finally
+            {
+                mutex.ReleaseMutex();
+            }
+            if (!running && success) _ = ExecuteNext();
+            return success;
         }
 
-        public void ExecuteNext()
+        public async Task ExecuteNext()
         {
+            running = true;
             Process process = null;
             int time = 0;
-            lock (mutex)
+            while (scheduler.HasUnfinished())
             {
-                (process, time) = scheduler.Next();
+                try
+                {
+                    mutex.WaitOne();
+
+                    (process, time) = scheduler.Next();
+                    if(process.ExecutionTime - time == 0)
+                    {
+                        totalCpuUsage -= process.CpuUsage;
+                        totalMemoryUsage -= process.MemoryUsage;
+                    }
+                }
+                catch
+                {
+                    Console.WriteLine("Error");
+                }
+                finally
+                {
+                    mutex.ReleaseMutex();
+                }
+                Console.WriteLine($"Executing : {process}");
+                await Task.Delay(time);
             }
-            Console.WriteLine($"Executing : {process}");
-            Thread.Sleep(time);
+            running = false;
         }
 
         public string ActiveProcessesToString() // informaciju o aktivnim procesima za slanje preko udp-a
         {
             string processes = "";
-            lock (mutex)
+            try
             {
+                mutex.WaitOne();
                 foreach (Process process in scheduler.GetAll())
                 {
                     processes += process.ToString();
                 }
+            }
+            catch
+            {
+                Console.WriteLine("Error");
+            }
+            finally
+            {
+                mutex.ReleaseMutex(); 
             }
             return processes;
         }

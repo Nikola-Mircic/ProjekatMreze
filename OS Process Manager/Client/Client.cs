@@ -1,4 +1,5 @@
 ﻿using Client.Senders;
+using ProcessOS;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +13,7 @@ namespace Client
 {
     public class Client
     {
+        internal static List<Process> Processes = new List<Process>();
         static void Main(string[] args)
         {
             IPAddress iPAddress = IPAddress.Loopback; // Svuda koristim Loopback posto rade na istoj masini
