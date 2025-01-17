@@ -18,10 +18,14 @@ namespace Client.Senders
         private readonly IPAddress IPAddress;
         private readonly int serverPort;
 
+        private Queue<Process> toSend;
+
         public TcpRequestSender(IPAddress IPAddress, int serverPort)
         {
             this.IPAddress = IPAddress;
             this.serverPort = serverPort;
+
+            this.toSend = new Queue<Process>();
         }
 
         public void Close()
@@ -59,16 +63,10 @@ namespace Client.Senders
             }
         }
 
-        public void SendProcess()
+        public bool SendProcess(Process process)
         {
-            string processName = "";
-            
             try
             {
-                Console.WriteLine("Enter process name:");
-                processName = Console.ReadLine(); //promeniti da salje procese
-                Process process = new Process(processName);
-
                 byte[] msg = Process.Serialize(process);
 
                 int bytesSent = clientSocket.Send(msg);
@@ -78,13 +76,16 @@ namespace Client.Senders
                 if(Encoding.UTF8.GetString(msg, 0, bytesReceived) != "SUCCESS")
                 {
                     Console.WriteLine($"Process failed to start:\n\t{process}");
-                    Client.Processes.Add(process);
+                    return false;
                 }
             }
             catch
             {
                 Console.WriteLine("Failure");
+                return false;
             }
+            Console.WriteLine("Process finished!");
+            return true;
         }
     }
 }
