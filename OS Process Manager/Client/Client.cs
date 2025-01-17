@@ -13,23 +13,42 @@ namespace Client
 {
     public class Client
     {
-        internal static List<Process> Processes = new List<Process>();
-        static void Main(string[] args)
+        private IPAddress iPAddress = IPAddress.Loopback; // Svuda koristim Loopback posto rade na istoj masini
+        private int serverPort = 8000;
+
+        private UdpRequestSender udpRequestSender;
+        private TcpRequestSender tcpRequestSender;
+
+        private static List<Process> toSend;
+        private Thread sender;
+        private bool senderRunning;
+        private ManualResetEvent mrse;
+
+        private Client()
         {
-            IPAddress iPAddress = IPAddress.Loopback; // Svuda koristim Loopback posto rade na istoj masini
-            int serverPort = 8000;
+            toSend = new List<Process>();
 
-            int maxAttempts = 3;
+            udpRequestSender = new UdpRequestSender(iPAddress, serverPort);
 
+            connectToTCPSocket();
+
+            sender = new Thread(() => { SendProcessQueue(); });
+            mrse = new ManualResetEvent(false);
+            senderRunning = true;
+            sender.Start();
+        }
+
+        private (string, int, bool) GetServerTcpSocket()
+        {
             /*
                 slanje zahteva za konekciju
                 ukoliko se konekcija ne uspostavi u maxAttempts pokusaja, prekida se rad
             */
-            UdpRequestSender udpRequestSender = new UdpRequestSender(iPAddress, serverPort);
-
             string ip = string.Empty;
             int port = -1;
             bool successful = false;
+
+            int maxAttempts = 3;
 
             do
             {
@@ -39,7 +58,7 @@ namespace Client
                 {
                     Console.WriteLine("Connection failed!\nDisconnecting...");
                     Console.ReadKey();
-                    return;
+                    return ("", 0, false);
                 }
                 if (!successful)
                 {
@@ -48,15 +67,25 @@ namespace Client
 
             } while (!successful);
 
+            return (ip, port, successful);
+        }
+
+        public void connectToTCPSocket()
+        {
+            (string ip, int port, bool successful) = GetServerTcpSocket();
+
             //uspostavljanje tcp konekcije sa serverom
-            TcpRequestSender tcpRequestSender = new TcpRequestSender(IPAddress.Parse(ip), port);
+            tcpRequestSender = new TcpRequestSender(IPAddress.Parse(ip), port);
             successful = tcpRequestSender.RequestConnection();
             if (!successful)
             {
                 Console.WriteLine("Connection failed!\nDisconnecting...");
                 return;
             }
+        }
 
+        public void readInput()
+        {
             int opt = -1;
             do
             {
@@ -73,7 +102,18 @@ namespace Client
                         Console.ReadKey();
                         break;
                     case 2:
-                        tcpRequestSender.SendProcess(); //trenutno radi sa obicnim porukama
+                        string processName = "";
+                        Console.WriteLine("Enter process name:");
+                        processName = Console.ReadLine(); //promeniti da salje procese
+                        Process process = new Process(processName);
+
+                        lock (toSend)
+                        {
+                            toSend.Add(process);
+                        }
+
+                        mrse.Set();
+
                         Console.WriteLine("Press any key to continue...");
                         Console.ReadKey();
                         break;
@@ -83,8 +123,16 @@ namespace Client
 
             } while (opt != 0);
 
+            Console.WriteLine("Slanje preostalih procesa...");
+            senderRunning = false;
+            mrse.Set();
+            sender.Join();
+
+            Console.WriteLine("Gasenje uticnica...");
             tcpRequestSender.Close();
             udpRequestSender.Close();
+
+            Console.WriteLine("Klijent uspesno ugasen.");
         }
 
         private static void ShowMenu()
@@ -94,6 +142,39 @@ namespace Client
             Console.WriteLine("1. Request information");
             Console.WriteLine("2. Send process");
             Console.WriteLine("0. Quit");
+        }
+
+        static void Main(string[] args)
+        {
+            Client client = new Client();
+            client.readInput();
+        }
+
+        private void SendProcessQueue()
+        {
+            while (true) 
+            {
+                mrse.WaitOne();// Ceka da se nesto ubaci u listu
+
+                lock (toSend)
+                {
+                    if (toSend.Count == 0) {
+                        if (!senderRunning)
+                            return;
+
+                        mrse.Reset(); /// Poslati su svi procesi, ulazi se u stanje cekanja
+                        continue;
+                    }
+
+                    // Provera da li je proces uspesno poslat
+                    if (tcpRequestSender.SendProcess(toSend.First()))
+                    {
+                        // Ako je proces uspesno poslat, uklanja se iz liste
+                        toSend.RemoveAt(0);
+                        Thread.Sleep(1000);
+                    }
+                }
+            }
         }
     }
 }
