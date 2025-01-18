@@ -3,11 +3,14 @@ using Server.Receivers;
 using Server.Schedulers;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using ClientProcess = System.Diagnostics.Process;
 
 namespace Server
 {
@@ -15,6 +18,8 @@ namespace Server
     {
         public static readonly int CLIENT_CONN_PORT = 8000;
         public static readonly int PROCESS_PORT = 8001;
+        public static readonly int MAX_CLIENTS = 5;
+        public static readonly int START_CLIENTS = 1;
 
         static void Main(string[] args)
         {
@@ -25,28 +30,44 @@ namespace Server
             Console.Clear();
             if (!success)
             {
-                Console.WriteLine("Server shutting down...");
+                Console.WriteLine("[Server] shutting down...");
                 return;
             }
-            Console.WriteLine($"Scheduling mode: {schedulingMode}");
+            Console.WriteLine($"[Scheduling]: {schedulingMode}");
 
             //udp listener
             Thread udpThread = new Thread(() => receiver.Start());
             udpThread.Start();
             
-            ProcessReceiver tcpProcessReceiver = new ProcessReceiver(IPAddress.Loopback, PROCESS_PORT);
-            tcpProcessReceiver.Start();
+            ProcessReceiver tcpProcessReceiver = new ProcessReceiver(IPAddress.Loopback, PROCESS_PORT, MAX_CLIENTS);
 
             //tcp listener
-            Thread tcpThread = new Thread(() => tcpProcessReceiver.Connect());
+            Thread tcpThread = new Thread(() => tcpProcessReceiver.Start());
             tcpThread.Start();
 
-            Console.WriteLine("Receiver Started!");
+            StartClient(START_CLIENTS);
+
+            Console.WriteLine("[Receiver] Started!");
             Console.ReadLine();
 
-            tcpProcessReceiver.Stop();
+            tcpProcessReceiver.Stop(tcpThread);
             receiver.Stop();
 
+            Manager.Get().ServerInfo();
+
+        }
+
+        private static void StartClient(int clients)
+        {
+            for (int i = 0; i < clients; i++)
+            {
+                string path = Path.Combine(Directory.GetCurrentDirectory(), "..\\..\\..", "Client\\bin\\Debug\\Client");
+                ClientProcess client = new ClientProcess(); //System.Diagnostics.Process
+                client.StartInfo.FileName = path;
+                client.StartInfo.Arguments = $"{i + 1}";
+                Console.WriteLine($"[Client {i + 1}] started");
+                client.Start();
+            }
         }
 
         private static void ScheduleOptions()
@@ -72,7 +93,7 @@ namespace Server
                 switch (scheduleOpt)
                 {
                     case 1:
-                        Manager.Init(new RoundRobinScheduler(500));
+                        Manager.Init(new RoundRobinScheduler(1));
                         return ("Round Robin Scheduling", true);
                         
                     case 2:

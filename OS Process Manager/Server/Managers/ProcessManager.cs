@@ -17,6 +17,10 @@ namespace Server.Managers
         private static readonly Mutex mutex = new Mutex();
         private bool running;
 
+        private double maxCpuUsage = 0;
+        private double maxMemUsage = 0;
+        private Process minExecProcess = null;
+
         public ProcessManager(IScheduler scheduler)
         {
             this.scheduler = scheduler;
@@ -38,11 +42,23 @@ namespace Server.Managers
                     totalMemoryUsage += process.MemoryUsage;
                     scheduler.Add(process);
                     success = true;
+                    if(totalCpuUsage > maxCpuUsage)
+                    {
+                        maxCpuUsage = totalCpuUsage;
+                    }
+                    if(totalMemoryUsage > maxMemUsage)
+                    {
+                        maxMemUsage = totalMemoryUsage;
+                    }
+                    if(minExecProcess == null || (minExecProcess != null && minExecProcess.ExecutionTime > process.ExecutionTime))
+                    {
+                        minExecProcess = new Process(process);
+                    }
                 }
             }
-            catch
+            catch(Exception ex)
             {
-                Console.WriteLine("Error");
+                Console.WriteLine($"[Error]:\n{ex.Message}");
             }
             finally
             {
@@ -70,40 +86,35 @@ namespace Server.Managers
                         totalMemoryUsage -= process.MemoryUsage;
                     }
                 }
-                catch
+                catch(Exception ex)
                 {
-                    Console.WriteLine("Error");
+                    Console.WriteLine($"[Error]:\n{ex.Message}");
                 }
                 finally
                 {
                     mutex.ReleaseMutex();
                 }
-                Console.WriteLine($"Executing : {process}");
-                await Task.Delay(time);
+                Console.WriteLine($"[Executing]:\n{process}");
+                await Task.Delay(time * 1000);
+                if (process.ExecutionTime - time == 0)
+                {
+                    process.ExecutionTime = 0;
+                    Console.WriteLine($"[Completed]:\n{process}");
+                }
             }
             running = false;
         }
 
-        public string ActiveProcessesToString() // informaciju o aktivnim procesima za slanje preko udp-a
+        public void ServerInfo()
         {
-            string processes = "";
-            try
+            Console.WriteLine("[ServerInfo]:");
+            Console.WriteLine($"Max CPU usage: {maxCpuUsage.ToString("F2")}%");
+            Console.WriteLine($"Max Memory usage: {maxMemUsage.ToString("F2")}%");
+            if(minExecProcess != null)
             {
-                mutex.WaitOne();
-                foreach (Process process in scheduler.GetAll())
-                {
-                    processes += process.ToString();
-                }
+                Console.WriteLine("Process with min execution time:");
+                Console.WriteLine(minExecProcess);
             }
-            catch
-            {
-                Console.WriteLine("Error");
-            }
-            finally
-            {
-                mutex.ReleaseMutex(); 
-            }
-            return processes;
         }
     }
 }

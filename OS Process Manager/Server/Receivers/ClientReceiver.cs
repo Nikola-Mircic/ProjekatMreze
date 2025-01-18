@@ -80,7 +80,7 @@ namespace Server.Receivers
 
             Running = false;
             ClientSocket.Close();
-            Console.WriteLine("UDP listener socket closed");
+            Console.WriteLine("[UDP listener socket] closing...");
         }
     }
 }
