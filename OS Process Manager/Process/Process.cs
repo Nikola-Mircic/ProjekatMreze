@@ -22,7 +22,7 @@ namespace ProcessOS
         public Process(string name)
         {
             Name = name;
-            ExecutionTime = rand.Next(1000, 5000);
+            ExecutionTime = rand.Next(1, 5);
             Priority = rand.Next(0,3);
             CpuUsage = rand.NextDouble() * rand.Next(10, 80);
             MemoryUsage = rand.NextDouble() * rand.Next(10, 80);
@@ -37,9 +37,18 @@ namespace ProcessOS
             this.MemoryUsage = mem;
         }
 
+        public Process(Process process)
+        {
+            this.Name = process.Name;
+            this.ExecutionTime = process.ExecutionTime;
+            this.Priority = process.Priority;
+            this.CpuUsage = process.CpuUsage;
+            this.MemoryUsage = process.MemoryUsage;
+        }
+
         public override string ToString()
         {
-            return $"| Name: {Name, -15} | Execution time: {ExecutionTime + "ms", -7} | Priority: {Priority, -2} " +
+            return $"| Name: {Name, -15} | Execution time: {ExecutionTime + "s", -3} | Priority: {Priority, -2} " +
                 $"| CPU usage: {CpuUsage.ToString("F2") + "%",-6} | Memory usage: {MemoryUsage.ToString("F2") + "%",-6} |";
         }
 

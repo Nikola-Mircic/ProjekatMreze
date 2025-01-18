@@ -13,17 +13,15 @@ namespace Client.Senders
 {
     internal class TcpRequestSender
     {
-        Socket clientSocket = null;
+        private Socket clientSocket = null;
 
-        private readonly IPAddress IPAddress;
-        private readonly int serverPort;
+        private IPEndPoint endPoint = null;
 
         private Queue<Process> toSend;
 
         public TcpRequestSender(IPAddress IPAddress, int serverPort)
         {
-            this.IPAddress = IPAddress;
-            this.serverPort = serverPort;
+            endPoint = new IPEndPoint(IPAddress, serverPort);
 
             this.toSend = new Queue<Process>();
         }
@@ -38,27 +36,15 @@ namespace Client.Senders
 
         public bool RequestConnection()
         {
-            if (clientSocket == null)
-            {
-                try
-                {
-                    clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                }
-                catch(SocketException ex)
-                {
-                    Console.WriteLine(ex.ToString());
-                    return false;
-                }
-            }
             try
             {
-                IPEndPoint ipEndPoint = new IPEndPoint(IPAddress, serverPort);
-                clientSocket.Connect(ipEndPoint);
+                clientSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                clientSocket.Connect(endPoint);
                 return true;
             }
             catch(SocketException ex)
             {
-                Console.WriteLine(ex.ToString());
+                Console.WriteLine($"[Client TCP socket] failed to connect: {ex.SocketErrorCode}");
                 return false;
             }
         }
@@ -75,16 +61,24 @@ namespace Client.Senders
 
                 if(Encoding.UTF8.GetString(msg, 0, bytesReceived) != "SUCCESS")
                 {
-                    Console.WriteLine($"Process failed to start:\n\t{process}");
                     return false;
                 }
             }
-            catch
+            catch(SocketException ex)
             {
-                Console.WriteLine("Failure");
+                Console.Clear();
+                Console.WriteLine($"[Client TCP socket]: {ex.SocketErrorCode}");
+                Console.WriteLine("Press enter to continue...");
+                toSend.Clear();
+                ClientBuilder.ForceStop = true;
+                
                 return false;
             }
-            Console.WriteLine("Process finished!");
+            catch(Exception ex)
+            {
+                Console.WriteLine($"[Client TCP socket] error:\n{ex.Message}");
+                return false;
+            }
             return true;
         }
     }

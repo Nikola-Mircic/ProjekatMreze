@@ -16,141 +16,122 @@ namespace Server.Receivers
     internal class ProcessReceiver
     {
         private Socket tcpServerSocket = null;
+        private IPEndPoint endPoint = null;
+        private int MaxClients;
+        private List<Socket> clients = new List<Socket>();
+        bool running;
 
-        private IPAddress ipAddress;
-        private int port;
-
-        private List<Socket> acceptedSockets = new List<Socket>(); //tmp resenje za gasenje tcp konekcija nakon sto se ugasi server
-
-        public ProcessReceiver(IPAddress ip, int port)
+        public ProcessReceiver(IPAddress ip, int port, int maxClients)
         {
-            this.ipAddress = ip;
-            this.port = port;
+            endPoint = new IPEndPoint(ip, port);
+            MaxClients = maxClients;
+
         }
 
-        public bool Start()
+        public void Start()
         {
-            if(tcpServerSocket == null)
-            {
-                try
-                {
-                    tcpServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                    IPEndPoint ipEndPoint = new IPEndPoint(ipAddress, port);
-                    tcpServerSocket.Bind(ipEndPoint);
-                    tcpServerSocket.Listen(10);
-                    return true;
-                }
-                catch(SocketException ex)
-                {
-                    Console.WriteLine(ex.ToString());
-                    return false;
-                }
-            }
-            return true;
-        }
+            tcpServerSocket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            tcpServerSocket.Bind(endPoint);
+            tcpServerSocket.Blocking = false;
+            tcpServerSocket.Listen(MaxClients);
+            running = true;
 
-        public void Stop()
-        {
-            if (tcpServerSocket != null)
-            {
-                tcpServerSocket.Close();
-            }
-            foreach (Socket socket in acceptedSockets) //zatvaranje otvorenih soketa ukoliko se listener ugasi pre njih
-            {
-                if(socket != null && socket.Connected)
-                {
-                    socket.Close();
-                }
-            }
-        }
-
-        public void Connect()
-        {
-            tcpServerSocket.BeginAccept(new AsyncCallback(AcceptCallback), tcpServerSocket);
-        }
-
-        private void AcceptCallback(IAsyncResult ar)
-        {
-            try
-            {
-                if (tcpServerSocket == null || !tcpServerSocket.IsBound)
-                {
-                    return; 
-                }
-
-                Socket acceptedSocket = tcpServerSocket.EndAccept(ar);
-                acceptedSockets.Add(acceptedSocket);
-                Thread tcpListener = new Thread(() => HandleClient(acceptedSocket));
-                tcpServerSocket.BeginAccept(new AsyncCallback(AcceptCallback), tcpServerSocket);
-                tcpListener.Start();
-            }
-            catch (ObjectDisposedException)
-            {
-                Console.WriteLine("TCP listener socket closed!");
-                return;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e.ToString());
-            }
-        }
-
-        private void HandleClient(Socket socket)
-        {
             byte[] buffer = new byte[1024];
             try
             {
-                while (true)
+                while (running)
                 {
-                    int bytesReceived = socket.Receive(buffer);
+                    List<Socket> checkRead = new List<Socket>();
+                    List<Socket> checkError = new List<Socket>();
 
-                    if (bytesReceived == 0)
+                    if (clients.Count < MaxClients)
                     {
-                        Console.WriteLine("Client disconnected");
-                        break;
+                        checkRead.Add(tcpServerSocket);
+                    }
+                    checkError.Add(tcpServerSocket);
+
+                    foreach (Socket socket in clients)
+                    {
+                        checkRead.Add(socket);
+                        checkError.Add(socket);
                     }
 
-                    Process process = Process.Deserialize(buffer);
+                    Socket.Select(checkRead, null, checkError, 1000);
 
-                    if(process == null)
+                    if (checkRead.Count > 0)
                     {
-                        Console.WriteLine("Invalid process was received");
-                        break;
-                    }
+                        foreach (Socket socket in checkRead)
+                        {
+                            if (socket == tcpServerSocket)
+                            {
+                                Socket client = tcpServerSocket.Accept();
+                                client.Blocking = false;
+                                clients.Add(client);
+                            }
+                            else
+                            {
+                                int bytesReceived = socket.Receive(buffer);
 
-                    //Console.WriteLine("Received process:\n\t" + process);
-                    if (Manager.Get().Add(process))
-                    {
-                        //posalji poruku klijentu da je proces prihvacen
-                        socket.Send(Encoding.UTF8.GetBytes("SUCCESS"));
+                                if (bytesReceived == 0)
+                                {
+                                    Console.WriteLine("[TCP socket] client disconnected");
+                                    socket.Close();
+                                    clients.Remove(socket);
+                                    continue;
+                                }
+
+                                Process process = Process.Deserialize(buffer);
+
+                                if (process == null)
+                                {
+                                    Console.WriteLine("[TCP socket] invalid process received");
+                                    continue;
+                                }
+
+                                //Console.WriteLine("Received process:\n\t" + process);
+                                if (Manager.Get().Add(process))
+                                {
+                                    //posalji poruku klijentu da je proces prihvacen
+                                    socket.Send(Encoding.UTF8.GetBytes("SUCCESS"));
+                                }
+                                else
+                                {
+                                    //posalji poruku klijentu da nema memorije/cpu
+                                    socket.Send(Encoding.UTF8.GetBytes("FAILURE"));
+                                }
+                            }
+                        }
                     }
-                    else
-                    {
-                        //posalji poruku klijentu da nema memorije/cpu
-                        socket.Send(Encoding.UTF8.GetBytes("FAILURE"));
-                    }
+                    checkRead.Clear();
+                }
+                foreach (Socket client in clients)
+                {
+                    client.Close();
                 }
             }
             catch (SocketException ex)
             {
-                if(ex.SocketErrorCode == SocketError.ConnectionAborted)
+                if (ex.SocketErrorCode == SocketError.ConnectionAborted)
                 {
-                    Console.WriteLine("TCP socket closed!");
+                    Console.WriteLine("[TCP socket] closed!");
                 }
                 else
                 {
-                    Console.WriteLine("Error: " + ex.Message);
+                    Console.WriteLine($"[TCP socket] error:\n{ex.Message}");
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine("Error: " + ex.Message);
+                Console.WriteLine($"[Error]:\n{ex.Message}");
             }
-            finally
-            {
-                socket.Close();
-                Console.WriteLine("Connection closed.");
-            }
+        }
+
+        public void Stop(Thread t)
+        {
+            running = false;
+            t.Join();
+            tcpServerSocket.Close();
+            Console.WriteLine("[TCP listener] socket closed!");
         }
 
     }

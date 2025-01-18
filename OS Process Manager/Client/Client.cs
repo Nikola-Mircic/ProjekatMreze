@@ -13,82 +13,19 @@ namespace Client
 {
     public class Client
     {
-        private IPAddress iPAddress = IPAddress.Loopback; // Svuda koristim Loopback posto rade na istoj masini
-        private int serverPort = 8000;
+        private static IPAddress ipAddress = IPAddress.Loopback; // Svuda koristim Loopback posto rade na istoj masini
+        private static int serverPort = 8000;
 
-        private UdpRequestSender udpRequestSender;
-        private TcpRequestSender tcpRequestSender;
-
-        private static List<Process> toSend;
-        private Thread sender;
-        private bool senderRunning;
-        private ManualResetEvent mrse;
-
-        private Client()
-        {
-            toSend = new List<Process>();
-
-            udpRequestSender = new UdpRequestSender(iPAddress, serverPort);
-
-            connectToTCPSocket();
-
-            sender = new Thread(() => { SendProcessQueue(); });
-            mrse = new ManualResetEvent(false);
-            senderRunning = true;
-            sender.Start();
-        }
-
-        private (string, int, bool) GetServerTcpSocket()
-        {
-            /*
-                slanje zahteva za konekciju
-                ukoliko se konekcija ne uspostavi u maxAttempts pokusaja, prekida se rad
-            */
-            string ip = string.Empty;
-            int port = -1;
-            bool successful = false;
-
-            int maxAttempts = 3;
-
-            do
-            {
-                (ip, port, successful) = udpRequestSender.RequestConnection();
-
-                if (udpRequestSender.ConnectionAttempts >= maxAttempts)
-                {
-                    Console.WriteLine("Connection failed!\nDisconnecting...");
-                    Console.ReadKey();
-                    return ("", 0, false);
-                }
-                if (!successful)
-                {
-                    Thread.Sleep(1000);
-                }
-
-            } while (!successful);
-
-            return (ip, port, successful);
-        }
-
-        public void connectToTCPSocket()
-        {
-            (string ip, int port, bool successful) = GetServerTcpSocket();
-
-            //uspostavljanje tcp konekcije sa serverom
-            tcpRequestSender = new TcpRequestSender(IPAddress.Parse(ip), port);
-            successful = tcpRequestSender.RequestConnection();
-            if (!successful)
-            {
-                Console.WriteLine("Connection failed!\nDisconnecting...");
-                return;
-            }
-        }
-
-        public void readInput()
+        private static void readInput(ref ClientBuilder client)
         {
             int opt = -1;
             do
             {
+                if (ClientBuilder.ForceStop)
+                {
+                    Console.Clear();
+                    break;
+                }
                 ShowMenu();
                 if (!int.TryParse(Console.ReadLine(), out opt))
                 {
@@ -97,22 +34,12 @@ namespace Client
                 switch (opt)
                 {
                     case 1:
-                        udpRequestSender.RequestInformation(); //nije implementirano
-                        Console.WriteLine("Press any key to continue...");
-                        Console.ReadKey();
-                        break;
-                    case 2:
                         string processName = "";
                         Console.WriteLine("Enter process name:");
-                        processName = Console.ReadLine(); //promeniti da salje procese
+                        processName = Console.ReadLine();
                         Process process = new Process(processName);
 
-                        lock (toSend)
-                        {
-                            toSend.Add(process);
-                        }
-
-                        mrse.Set();
+                        client.Add(process);
 
                         Console.WriteLine("Press any key to continue...");
                         Console.ReadKey();
@@ -123,58 +50,51 @@ namespace Client
 
             } while (opt != 0);
 
-            Console.WriteLine("Slanje preostalih procesa...");
-            senderRunning = false;
-            mrse.Set();
-            sender.Join();
-
-            Console.WriteLine("Gasenje uticnica...");
-            tcpRequestSender.Close();
-            udpRequestSender.Close();
-
-            Console.WriteLine("Klijent uspesno ugasen.");
+            client.senderRunning = false;
+            client.mrse.Set();
+            Console.Clear();
         }
 
         private static void ShowMenu()
         {
             Console.Clear();
             Console.WriteLine("Choose option: ");
-            Console.WriteLine("1. Request information");
-            Console.WriteLine("2. Send process");
+            Console.WriteLine("1. Send process");
             Console.WriteLine("0. Quit");
         }
 
         static void Main(string[] args)
         {
-            Client client = new Client();
-            client.readInput();
-        }
-
-        private void SendProcessQueue()
-        {
-            while (true) 
+            ClientBuilder client = new ClientBuilder(ipAddress, serverPort);
+            bool successful = client.connectToTCPSocket();
+            if (!successful)
             {
-                mrse.WaitOne();// Ceka da se nesto ubaci u listu
-
-                lock (toSend)
-                {
-                    if (toSend.Count == 0) {
-                        if (!senderRunning)
-                            return;
-
-                        mrse.Reset(); /// Poslati su svi procesi, ulazi se u stanje cekanja
-                        continue;
-                    }
-
-                    // Provera da li je proces uspesno poslat
-                    if (tcpRequestSender.SendProcess(toSend.First()))
-                    {
-                        // Ako je proces uspesno poslat, uklanja se iz liste
-                        toSend.RemoveAt(0);
-                        Thread.Sleep(1000);
-                    }
-                }
+                Console.WriteLine("[Client] failed to connect!");
+                Console.WriteLine("Press any key to quit...");
+                Console.ReadKey();
+                return;
             }
+
+            Console.WriteLine("[UDP socket] closing...");
+            client.udpRequestSender.Close();
+
+            Thread sender = new Thread(() => { client.SendProcessQueue(); });
+            client.senderRunning = true;
+            sender.Start();
+
+            readInput(ref client);
+
+            if (!ClientBuilder.ForceStop)
+            {
+                Console.WriteLine("[TCP socket] sending remaining processes...\nPlease wait!");
+                sender.Join();
+            }
+
+            Console.WriteLine("[TCP socket] closing...");
+            client.tcpRequestSender.Close();
+            Console.WriteLine("[Client] shutting down...\nPress any key to quit...");
+            Console.ReadKey();
         }
+
     }
 }
