@@ -51,10 +51,6 @@ namespace Server.Receivers
                         byte[] process_ep = Encoding.UTF8.GetBytes(ProcessReceiver.ToString());
                         ClientSocket.SendTo(process_ep, clientEndPoint);
                     }
-                    else if(receivedMessage.Equals("OS-STATUS"))
-                    {
-                        // TO-DO: Zahtev za status operativnog sistema
-                    }
                 }
                 catch (SocketException ex)
                 {
