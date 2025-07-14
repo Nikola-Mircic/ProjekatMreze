@@ -42,21 +42,15 @@ namespace Server.Receivers
                 while (running)
                 {
                     List<Socket> checkRead = new List<Socket>();
-                    List<Socket> checkError = new List<Socket>();
 
-                    if (clients.Count < MaxClients)
-                    {
-                        checkRead.Add(tcpServerSocket);
-                    }
-                    checkError.Add(tcpServerSocket);
+                    checkRead.Add(tcpServerSocket);
 
                     foreach (Socket socket in clients)
                     {
                         checkRead.Add(socket);
-                        checkError.Add(socket);
                     }
 
-                    Socket.Select(checkRead, null, checkError, 1000);
+                    Socket.Select(checkRead, null, null, 1000);
 
                     if (checkRead.Count > 0)
                     {
@@ -70,34 +64,62 @@ namespace Server.Receivers
                             }
                             else
                             {
-                                int bytesReceived = socket.Receive(buffer);
-
-                                if (bytesReceived == 0)
+                                try
                                 {
-                                    Console.WriteLine("[TCP socket] client disconnected");
-                                    socket.Close();
-                                    clients.Remove(socket);
-                                    continue;
+                                    if (socket.Poll(1000, SelectMode.SelectRead) && socket.Available == 0)
+                                    {
+                                        Console.WriteLine("[TCP socket] Client has closed the connection.");
+                                        socket.Shutdown(SocketShutdown.Both);
+                                        socket.Close();
+                                        clients.Remove(socket);
+                                        continue;
+                                    }
+
+                                    int bytesReceived = socket.Receive(buffer);
+
+                                    if (bytesReceived == 0)
+                                    {
+                                        Console.WriteLine("[TCP socket] Client disconnected (0 bytes received).");
+                                        socket.Shutdown(SocketShutdown.Both);
+                                        socket.Close();
+                                        clients.Remove(socket);
+                                        continue;
+                                    }
+
+                                    Process process = Process.Deserialize(buffer);
+
+                                    if (process == null)
+                                    {
+                                        Console.WriteLine("[TCP socket] Invalid process received.");
+                                        continue;
+                                    }
+
+                                    if (Manager.Get().Add(process))
+                                    {
+                                        socket.Send(Encoding.UTF8.GetBytes("SUCCESS"));
+                                    }
+                                    else
+                                    {
+                                        socket.Send(Encoding.UTF8.GetBytes("FAILURE"));
+                                    }
                                 }
-
-                                Process process = Process.Deserialize(buffer);
-
-                                if (process == null)
+                                catch (SocketException ex)
                                 {
-                                    Console.WriteLine("[TCP socket] invalid process received");
-                                    continue;
+                                    if (ex.SocketErrorCode == SocketError.ConnectionReset || ex.SocketErrorCode == SocketError.TimedOut)
+                                    {
+                                        Console.WriteLine("[TCP socket] Client forcibly closed the connection or timed out.");
+                                        socket.Shutdown(SocketShutdown.Both);
+                                        socket.Close();
+                                        clients.Remove(socket);
+                                    }
+                                    else
+                                    {
+                                        Console.WriteLine($"[TCP socket] SocketException: {ex.Message}");
+                                    }
                                 }
-
-                                //Console.WriteLine("Received process:\n\t" + process);
-                                if (Manager.Get().Add(process))
+                                catch (Exception ex)
                                 {
-                                    //posalji poruku klijentu da je proces prihvacen
-                                    socket.Send(Encoding.UTF8.GetBytes("SUCCESS"));
-                                }
-                                else
-                                {
-                                    //posalji poruku klijentu da nema memorije/cpu
-                                    socket.Send(Encoding.UTF8.GetBytes("FAILURE"));
+                                    Console.WriteLine($"[Error]: {ex.Message}");
                                 }
                             }
                         }
